@@ -1,0 +1,63 @@
+# Configuration file for Groundwater Estimation System
+
+# Data paths
+data:
+  raw_dir: "./data/raw"
+  processed_dir: "./data/processed"
+  external_dir: "./data/external"
+
+# Model configuration
+model:
+  type: "XGBRegressor"
+  n_estimators: 100
+  max_depth: 6
+  learning_rate: 0.1
+  random_state: 42
+  model_save_path: "./models/groundwater_model.pkl"
+
+# Feature engineering
+features:
+  input_features:
+    - rainfall
+    - soil_permeability
+    - elevation
+    - distance_to_nearest_piezometer
+  target_variable: water_level
+  normalization_method: StandardScaler
+
+# Spatial join configuration
+spatial:
+  k_nearest_piezometers: 5
+  piezometer_crs: "EPSG:4326"
+  village_crs: "EPSG:4326"
+
+# Validation thresholds
+validation:
+  mape_threshold: 0.05  # 5% error threshold
+  mae_threshold: null   # Optional
+  rmse_threshold: null  # Optional
+
+# Anomaly detection configuration
+anomaly_detection:
+  contamination: 0.1
+  critical_std_threshold: 2.0  # meters
+  rolling_window_months: 3
+
+# API configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  model_path: "./models/groundwater_model.pkl"
+  data_path: "./data/processed/village_features.csv"
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_file: "./logs/groundwater_system.log"
+
+# Database configuration (optional, if using persistence)
+database:
+  type: "sqlite"  # or postgresql, mysql
+  path: "./data/groundwater.db"
