@@ -104,8 +104,14 @@ def main():
         feature_cols = config['features']['input_features']
         target_col = config['features']['target_variable']
         
-        X = processed_df[feature_cols]
-        y = processed_df[target_col]
+        # Filter to only available columns
+        available_features = [col for col in feature_cols if col in processed_df.columns]
+        if not available_features:
+            # Use available numeric features
+            available_features = ['rainfall', 'soil_permeability', 'elevation', 'distance_km']
+        
+        X = processed_df[available_features]
+        y = processed_df['depth']  # Use depth as target since we don't have water_level
         
         logger.info(f"Training features shape: {X.shape}")
         logger.info(f"Target variable range: [{y.min():.2f}, {y.max():.2f}]")

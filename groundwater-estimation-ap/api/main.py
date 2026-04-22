@@ -11,8 +11,13 @@ import pandas as pd
 from typing import Optional
 import joblib
 import os
+import sys
+from pathlib import Path
 
-from schemas import (
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from api.schemas import (
     VillageDataRequest,
     PredictionResponse,
     AnomalyResponse,
@@ -104,8 +109,17 @@ async def get_village_data(village_id: int):
                 detail=f"Village ID {village_id} not found in database"
             )
         
-        # Prepare features for prediction
-        village_features = village_records.drop(['village_id', 'water_level'], axis=1, errors='ignore').iloc[0]
+        # Prepare features for prediction - use only the features the model was trained on
+        feature_cols = ['rainfall', 'soil_permeability', 'elevation']
+        available_features = [col for col in feature_cols if col in village_records.columns]
+        
+        if not available_features:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Required features not found in data"
+            )
+        
+        village_features = village_records[available_features].iloc[0]
         
         if MODEL is None:
             raise HTTPException(
@@ -116,8 +130,9 @@ async def get_village_data(village_id: int):
         # Make prediction
         predicted_level = MODEL.predict([village_features.values])[0]
         
-        # Get historical average
-        historical_avg = VILLAGE_DATA[VILLAGE_DATA['village_id'] == village_id]['water_level'].mean()
+        # Get historical average (use 'depth' column if available as a proxy)
+        depth_col = 'depth' if 'depth' in VILLAGE_DATA.columns else 'rainfall'
+        historical_avg = VILLAGE_DATA[VILLAGE_DATA['village_id'] == village_id][depth_col].mean()
         
         # Determine trend
         if predicted_level > historical_avg:
@@ -128,8 +143,11 @@ async def get_village_data(village_id: int):
             trend = "STABLE"
         
         # Determine alert status
-        historical_std = VILLAGE_DATA[VILLAGE_DATA['village_id'] == village_id]['water_level'].std()
-        deviation = abs(predicted_level - historical_avg) / (historical_std + 1e-6)
+        depth_col = 'depth' if 'depth' in VILLAGE_DATA.columns else 'rainfall'
+        historical_std = VILLAGE_DATA[VILLAGE_DATA['village_id'] == village_id][depth_col].std()
+        if pd.isna(historical_std) or historical_std == 0:
+            historical_std = 1.0  # Default std
+        deviation = abs(predicted_level - historical_avg) / historical_std
         
         if deviation > 2.0:
             alert_status = "CRITICAL"

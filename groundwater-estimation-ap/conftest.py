@@ -1,10 +1,12 @@
 """
-pytest configuration file
+pytest configuration and fixtures
 """
 
 import pytest
 import sys
 from pathlib import Path
+import pandas as pd
+import numpy as np
 
 # Add project root to path
 project_root = Path(__file__).parent
@@ -27,9 +29,6 @@ def pytest_configure(config):
 @pytest.fixture(scope="session")
 def sample_features():
     """Provide sample features for testing."""
-    import pandas as pd
-    import numpy as np
-    
     np.random.seed(42)
     
     return pd.DataFrame({
@@ -43,7 +42,5 @@ def sample_features():
 @pytest.fixture(scope="session")
 def sample_target():
     """Provide sample target variable for testing."""
-    import numpy as np
-    
     np.random.seed(42)
     return np.random.uniform(10, 50, 100)

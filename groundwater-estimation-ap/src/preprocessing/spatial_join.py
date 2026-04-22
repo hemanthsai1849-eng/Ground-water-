@@ -61,24 +61,26 @@ def spatial_join_nearest_piezometers(
     """
     results = []
     
-    for idx, village in villages_gdf.iterrows():
-        village_point = village.geometry
-        village_id = village['village_id']
+    # Extract coordinates for faster computation
+    village_coords = np.array([[geom.x, geom.y] for geom in villages_gdf.geometry])
+    piezometer_coords = np.array([[geom.x, geom.y] for geom in piezometers_gdf.geometry])
+    piezometer_ids = piezometers_gdf['piezometer_id'].values
+    
+    for idx, village_id in enumerate(villages_gdf['village_id']):
+        village_point = village_coords[idx]
         
-        # Calculate distances to all piezometers
-        distances = piezometers_gdf.geometry.distance(village_point)
+        # Calculate distances using numpy (faster than iterating)
+        distances = np.sqrt(np.sum((piezometer_coords - village_point) ** 2, axis=1))
         
-        # Get k nearest piezometers
-        nearest_indices = distances.nsmallest(k).index
-        nearest_distances = distances[nearest_indices].values
-        nearest_piezometer_ids = piezometers_gdf.loc[nearest_indices, 'piezometer_id'].values
+        # Get k nearest indices
+        nearest_indices = np.argsort(distances)[:k]
         
-        for i, (piz_id, distance) in enumerate(zip(nearest_piezometer_ids, nearest_distances)):
+        for rank, nearest_idx in enumerate(nearest_indices):
             results.append({
                 'village_id': village_id,
-                'piezometer_id': piz_id,
-                'distance_km': distance * 111.32,  # Convert degrees to km
-                'rank': i + 1
+                'piezometer_id': piezometer_ids[nearest_idx],
+                'distance_km': distances[nearest_idx] * 111.32,  # Convert degrees to km
+                'rank': rank + 1
             })
     
     return pd.DataFrame(results)
